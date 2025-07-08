@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fantasy Football Replica - ESPN Style</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background: #f4f6f8;
+    color: #222;
+  }
+  a {
+    color: #0b3d91;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  header {
+    background: #0b3d91;
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-weight: 700;
+  }
+  nav {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 4px;
+  }
+  nav button.active, nav button:hover {
+    background: #084285;
+  }
+  .container {
+    max-width: 1100px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.05);
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+  .team-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  .team-card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    flex: 1 1 200px;
+    padding: 15px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+  }
+  .team-card h3 { margin: 0 0 10px 0; }
+  .roster-list {
+    flex-grow: 1;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #555;
+  }
+  .team-controls {
+    display: flex;
+    gap: 10px;
+  }
+  .team-controls button {
+    flex: 1;
+    padding: 6px;
+    font-size: 12px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .team-controls button.rename { background: #0b3d91; color: white; }
+  .team-controls button.remove { background: #cc0000; color: white; }
+  .team-controls button.add { background: #2a9d8f; color: white; }
+  #addTeamBtn {
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    cursor: pointer;
+    background: #2a9d8f;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+  }
+  /* Add Team Modal */
+  #addTeamModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  #addTeamModal .modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+  }
+  #addTeamModal input {
+    width: 100%;
+    padding: 10px;
+    margin: 15px 0;
+  }
+  #addTeamModal button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    margin: 0 5px;
+  }
+  #confirmAddTeam { background: #0b3d91; color: white; }
+  #cancelAddTeam { background: #888; color: white; }
+  /* Draft order list styles */
+  #draftOrderList {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+  #draftOrderList ol {
+    padding-left: 20px;
+  }
+  #draftOrderList li {
+    margin-bottom: 4px;
+  }
+  /* Draft Timer */
+  #draftTimer {
+    margin: 15px 0;
+    font-weight: 600;
+    font-size: 16px;
+  }
+  /* Available Players Buttons */
+  #availablePlayers button {
+    margin: 5px 5px 5px 0;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    background: #2a9d8f;
+    color: white;
+    cursor: pointer;
+  }
+  #availablePlayers button:hover {
+    background: #1e5d66;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fantasy Football Replica</h1>
+  <nav>
+    <button class="active" data-page="teams">Teams</button>
+    <button data-page="draft">Draft</button>
+    <button data-page="standings">Standings</button>
+    <button data-page="players">Players</button>
+    <button data-page="schedule">Schedule</button>
+    <button data-page="league">League Settings</button>
+    <button data-page="transactions">Transactions</button>
+    <button data-page="tradecenter">Trade Center</button>
+    <button data-page="messages">Messages</button>
+    <button data-page="news">News</button>
+  </nav>
+</header>
+
+<div class="container">
+
+  <section id="teams" class="page active">
+    <h2>Teams</h2>
+    <button id="addTeamBtn">Add New Team</button>
+    <div class="team-list" id="teamList"></div>
+  </section>
+
+  <section id="draft" class="page">
+    <h2>Draft</h2>
+    <div id="draftOrderDisplay"></div>
+    <div id="draftOrderList"></div>
+    <div id="draftTimer"></div>
+    <div id="availablePlayers"></div>
+  </section>
+
+  <section id="standings" class="page">
+    <h2>Standings</h2>
+    <table id="standingsTable">
+      <thead>
+        <tr><th>#</th><th>Team</th><th>Points</th><th>Roster Size</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="players" class="page">
+    <h2>Players</h2>
+    <table id="playersTable">
+      <thead><tr><th>Name</th><th>Points</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="schedule" class="page"><h2>Schedule</h2><p>Coming soon...</p></section>
+  <section id="league" class="page"><h2>League Settings</h2><p>Coming soon...</p></section>
+  <section id="transactions" class="page"><h2>Transactions</h2><p>Coming soon...</p></section>
+  <section id="tradecenter" class="page"><h2>Trade Center</h2><p>Coming soon...</p></section>
+  <section id="messages" class="page"><h2>Messages</h2><p>Coming soon...</p></section>
+  <section id="news" class="page"><h2>News</h2><p>Coming soon...</p></section>
+
+</div>
+
+<!-- Add Team Modal -->
+<div id="addTeamModal">
+  <div class="modal-content">
+    <h3>Name Your Team</h3>
+    <input type="text" id="teamNameInput" placeholder="Enter team name" />
+    <div>
+      <button id="confirmAddTeam">Add</button>
+      <button id="cancelAddTeam">Cancel</button>
+    </div>
+  </div>
+</div>
+<script>
+  // Tab navigation
+  const navButtons = document.querySelectorAll('nav button');
+  const pages = document.querySelectorAll('.page');
+
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      navButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const page = btn.getAttribute('data-page');
+      pages.forEach(p => p.classList.toggle('active', p.id === page));
+    });
+  });
+
+  // Teams Data and Rendering
+  let teams = [
+    { id: 1, name: "Team Alpha", roster: [] },
+    { id: 2, name: "Team Bravo", roster: [] }
+  ];
+
+  const teamList = document.getElementById('teamList');
+  const addTeamBtn = document.getElementById('addTeamBtn');
+  const addTeamModal = document.getElementById('addTeamModal');
+  const teamNameInput = document.getElementById('teamNameInput');
+  const confirmAddTeam = document.getElementById('confirmAddTeam');
+  const cancelAddTeam = document.getElementById('cancelAddTeam');
+
+  function renderTeams() {
+    teamList.innerHTML = '';
+    teams.forEach(team => {
+      const card = document.createElement('div');
+      card.className = 'team-card';
+
+      const rosterText = team.roster.length ? team.roster.join(', ') : 'No players yet';
+
+      card.innerHTML = `
+        <h3>${team.name}</h3>
+        <div class="roster-list">${rosterText}</div>
+        <div class="team-controls">
+          <button class="rename">Rename</button>
+          <button class="remove">Remove</button>
+        </div>
+      `;
+
+      // Rename button
+      card.querySelector('.rename').onclick = () => {
+        const newName = prompt("Enter new team name:", team.name);
+        if (newName && newName.trim()) {
+          team.name = newName.trim();
+          renderTeams();
+          renderDraftOrder();
+          renderStandings();
+        }
+      };
+
+      // Remove button
+      card.querySelector('.remove').onclick = () => {
+        if (confirm(`Remove team "${team.name}"? This cannot be undone.`)) {
+          teams = teams.filter(t => t.id !== team.id);
+          renderTeams();
+          renderDraftOrder();
+          renderStandings();
+          // Reset draft if needed
+          if (draftStarted) resetDraft();
+        }
+      };
+
+      teamList.appendChild(card);
+    });
+  }
+
+  addTeamBtn.onclick = () => {
+    teamNameInput.value = '';
+    addTeamModal.style.display = 'flex';
+    teamNameInput.focus();
+  };
+
+  confirmAddTeam.onclick = () => {
+    const name = teamNameInput.value.trim();
+    if (name) {
+      const newId = teams.length ? Math.max(...teams.map(t => t.id)) + 1 : 1;
+      teams.push({ id: newId, name, roster: [] });
+      renderTeams();
+      renderDraftOrder();
+      renderStandings();
+      addTeamModal.style.display = 'none';
+    } else {
+      alert("Team name cannot be empty.");
+    }
+  };
+
+  cancelAddTeam.onclick = () => {
+    addTeamModal.style.display = 'none';
+  };
+
+  // Close modal when clicking outside
+  window.onclick = function(event) {
+    if (event.target === addTeamModal) {
+      addTeamModal.style.display = 'none';
+    }
+  };
+
+  // Players data (sample players)
+  const players = [
+    { id: 1, name: "Patrick Mahomes", points: 320 },
+    { id: 2, name: "Christian McCaffrey", points: 280 },
+    { id: 3, name: "Davante Adams", points: 250 },
+    { id: 4, name: "Travis Kelce", points: 240 },
+    { id: 5, name: "Derrick Henry", points: 230 },
+    { id: 6, name: "Stefon Diggs", points: 220 },
+    { id: 7, name: "Aaron Rodgers", points: 210 },
+    { id: 8, name: "DeAndre Hopkins", points: 200 },
+    { id: 9, name: "Alvin Kamara", points: 195 },
+    { id: 10, name: "Tyreek Hill", points: 190 }
+  ];
+
+  // Render players table
+  const playersTableBody = document.querySelector('#playersTable tbody');
+  function renderPlayers() {
+    playersTableBody.innerHTML = '';
+    players.forEach(p => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${p.name}</td><td>${p.points}</td>`;
+      playersTableBody.appendChild(row);
+    });
+  }
+
+  // Draft Logic
+  const draftOrderList = document.getElementById('draftOrderList');
+  const draftTimerDisplay = document.getElementById('draftTimer');
+  const availablePlayersDiv = document.getElementById('availablePlayers');
+  const draftOrderDisplay = document.getElementById('draftOrderDisplay');
+
+  let draftOrder = [];
+  let currentPickIndex = 0;
+  let draftStarted = false;
+  let draftTimer = null;
+  let timerSeconds = 30;
+
+  // Initialize draft order randomly
+  function generateDraftOrder() {
+    draftOrder = [...teams];
+    for (let i = draftOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [draftOrder[i], draftOrder[j]] = [draftOrder[j], draftOrder[i]];
+    }
+  }
+
+  // Render draft order list
+  function renderDraftOrder() {
+    draftOrderList.innerHTML = '<h3>Draft Order</h3>';
+    if (!draftOrder.length) return;
+    const ol = document.createElement('ol');
+    draftOrder.forEach(team => {
+      const li = document.createElement('li');
+      li.textContent = team.name;
+      ol.appendChild(li);
+    });
+    draftOrderList.appendChild(ol);
+  }
+
+  // Render available players buttons
+  function renderAvailablePlayers() {
+    availablePlayersDiv.innerHTML = '<h3>Available Players</h3>';
+    players.forEach(player => {
+      // Only show players not drafted
+      const drafted = teams.some(t => t.roster.includes(player.name));
+      if (!drafted) {
+        const btn = document.createElement('button');
+        btn.textContent = player.name;
+        btn.onclick = () => {
+          pickPlayer(player.name);
+        };
+        availablePlayersDiv.appendChild(btn);
+      }
+    });
+  }
+
+  // Pick player for current team
+  function pickPlayer(playerName) {
+    if (!draftStarted) {
+      alert('Start the draft first!');
+      return;
+    }
+    const currentTeam = draftOrder[currentPickIndex];
+    currentTeam.roster.push(playerName);
+    currentPickIndex++;
+
+    // Check if snake draft and wrap order (snake implemented as normal loop for simplicity here)
+    if (currentPickIndex >= draftOrder.length) {
+      currentPickIndex = 0;
+    }
+    renderTeams();
+    renderDraftOrder();
+    renderAvailablePlayers();
+    renderStandings();
+    updateDraftTimer();
+
+    if (teams.every(team => team.roster.length >= 5)) {
+      // End draft after 5 players each for demo
+      endDraft();
+    }
+  }
+
+  // Timer logic
+  function updateDraftTimer() {
+    clearInterval(draftTimer);
+    timerSeconds = 30;
+    const currentTeam = draftOrder[currentPickIndex];
+    draftTimerDisplay.textContent = `Time for ${currentTeam.name} to pick: ${timerSeconds}s`;
+
+    draftTimer = setInterval(() => {
+      timerSeconds--;
+      if (timerSeconds <= 0) {
+        // Auto pick random player for current team
+        autoPickPlayer();
+      } else {
+        draftTimerDisplay.textContent = `Time for ${currentTeam.name} to pick: ${timerSeconds}s`;
+      }
+    }, 1000);
+  }
+
+  // Auto pick random available player
+  function autoPickPlayer() {
+    clearInterval(draftTimer);
+    const available = players.filter(p => !teams.some(t => t.roster.includes(p.name)));
+    if (available.length === 0) {
+      endDraft();
+      return;
+    }
+    const randomPlayer = available[Math.floor(Math.random() * available.length)];
+    pickPlayer(randomPlayer.name);
+  }
+
+  // Start draft button and initialization
+  const draftOrderDisplayText = document.createElement('p');
+  draftOrderDisplay.appendChild(draftOrderDisplayText);
+
+  function startDraft() {
+    if (teams.length < 2) {
+      alert("Need at least 2 teams to start draft.");
+      return;
+    }
+    draftStarted = true;
+    generateDraftOrder();
+    renderDraftOrder();
+    renderAvailablePlayers();
+    currentPickIndex = 0;
+    updateDraftTimer();
+  }
+
+  // End draft
+  function endDraft() {
+    draftStarted = false;
+    draftTimerDisplay.textContent = "Draft completed!";
+    availablePlayersDiv.innerHTML = '';
+  }
+
+  // Reset draft if teams change
+  function resetDraft() {
+    draftStarted = false;
+    draftTimerDisplay.textContent = "";
+    availablePlayersDiv.innerHTML = '';
+    draftOrderList.innerHTML = '';
+    currentPickIndex = 0;
+  }
+
+  // Add Start Draft Button dynamically inside Draft tab
+  const draftSection = document.getElementById('draft');
+  const startDraftBtn = document.createElement('button');
+  startDraftBtn.textContent = "Start Draft";
+  startDraftBtn.style.marginBottom = '15px';
+  startDraftBtn.style.padding = '8px 12px';
+  startDraftBtn.style.backgroundColor = '#2a9d8f';
+  startDraftBtn.style.color = 'white';
+  startDraftBtn.style.border = 'none';
+  startDraftBtn.style.borderRadius = '5px';
+  startDraftBtn.style.cursor = 'pointer';
+
+  startDraftBtn.onclick = () => {
+    if (!draftStarted) startDraft();
+  };
+
+  draftSection.insertBefore(startDraftBtn, draftOrderDisplay);
+
+  // Standings rendering
+  const standingsTableBody = document.querySelector('#standingsTable tbody');
+  function renderStandings() {
+    standingsTableBody.innerHTML = '';
+    teams.forEach((team, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${team.name}</td>
+        <td>${team.roster.reduce((acc, playerName) => {
+          const player = players.find(p => p.name === playerName);
+          return acc + (player ? player.points : 0);
+        }, 0)}</td>
+        <td>${team.roster.length}</td>
+      `;
+      standingsTableBody.appendChild(tr);
+    });
+  }
+
+  // Initial renders
+  renderTeams();
+  renderPlayers();
+  renderStandings();
+
+</script>
+<script>
+  // Optional: Keyboard support for modal
+  teamNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmAddTeam.click();
+    if (e.key === 'Escape') cancelAddTeam.click();
+  });
+
+  // Warn before leaving with unsaved changes (optional)
+  window.addEventListener('beforeunload', (e) => {
+    if (draftStarted) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // You can add more league settings, schedule, transactions, messages, and news pages logic here as needed.
+
+</script>
